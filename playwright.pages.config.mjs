@@ -8,6 +8,8 @@ export default defineConfig({
   ...config,
   testMatch: '**/pages.spec.mjs',
   testIgnore: [],
+  // Several complete city rebuilds run sequentially on CPU-only CI workers.
+  timeout: 360000,
   expect: { timeout: 60000 },
   use: { ...config.use, baseURL },
   webServer: url.hostname === '127.0.0.1' ? {
