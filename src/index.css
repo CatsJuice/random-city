@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+
+:root {
+  font-family:
+    Manrope,
+    -apple-system,
+    BlinkMacSystemFont,
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  color: #2e4741;
+  background: #dfe9e5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: wait;
+  opacity: 0.4;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #3f8172;
+  outline-offset: 4px;
+}
+button {
+  color: inherit;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button svg {
+  flex-shrink: 0;
+}
+input[type='range'] {
+  width: 100%;
+  height: 4px;
+  margin: 13px 0;
+  accent-color: #397d6c;
+  cursor: pointer;
+}
+input[type='range']:focus {
+  outline-offset: 7px;
+}
+button {
+  transition:
+    background 0.16s,
+    color 0.16s,
+    box-shadow 0.16s;
+}
+button:hover:not(:disabled) {
+  background: #e6ece7;
+}
+h1,
+h2,
+p {
+  margin: 0;
+}
+button,
+input {
+  border-radius: 4px;
+}
+::selection {
+  background: #c6ddd0;
+}

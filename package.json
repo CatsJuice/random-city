@@ -1,0 +1,34 @@
+{
+  "name": "random-city",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "node --test tests/world.test.mjs",
+    "test:e2e": "playwright test",
+    "test:pages": "playwright test --config playwright.pages.config.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^1.11.0",
+    "pathfinding": "^0.4.18",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "vite": "^8.0.10"
+  }
+}
