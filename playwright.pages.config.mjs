@@ -8,6 +8,7 @@ export default defineConfig({
   ...config,
   testMatch: '**/pages.spec.mjs',
   testIgnore: [],
+  expect: { timeout: 60000 },
   use: { ...config.use, baseURL },
   webServer: url.hostname === '127.0.0.1' ? {
     command: `npm run preview -- --host 127.0.0.1 --port ${url.port} --strictPort`,

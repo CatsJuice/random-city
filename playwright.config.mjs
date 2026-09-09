@@ -11,7 +11,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 980 },
     headless: true,
     launchOptions: {
-      args: process.platform === 'darwin'
+      args: process.platform === 'darwin' && !process.env.CITY_SOFTWARE_RENDERING
         ? ['--use-angle=metal']
         : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
     },

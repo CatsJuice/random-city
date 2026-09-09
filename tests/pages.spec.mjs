@@ -24,9 +24,34 @@ async function ready(page) {
   await expect.poll(async () => (await pixels(page)).colors).toBeGreaterThan(35)
 }
 
+async function headerFits(page) {
+  const boxes = await page.locator('.brand, .header-actions > *').evaluateAll((elements) =>
+    elements.map((element) => {
+      const { x, y, width, height } = element.getBoundingClientRect()
+      return { x, y, width, height }
+    })
+  )
+  const width = page.viewportSize().width
+  for (const box of boxes) {
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(width)
+  }
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j]
+      const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
+      const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
+      expect(overlapX > 0 && overlapY > 0).toBe(false)
+    }
+  }
+}
+
 test('production site works under the Pages path in both implementations', async ({ page, baseURL }) => {
   const site = new URL(baseURL), errors = [], failed = [], models = []
   page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') console.error(message.text())
+  })
   page.on('response', (response) => {
     const url = new URL(response.url())
     if (url.origin !== site.origin) return
@@ -37,6 +62,12 @@ test('production site works under the Pages path in both implementations', async
   await ready(page)
   await expect(page.getByRole('complementary', { name: '城市设置' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: '汐湾城市罗盘' })).toHaveAttribute('href', site.pathname)
+  const github = page.getByRole('link', { name: 'GitHub 仓库' })
+  await expect(github).toHaveAttribute('href', 'https://github.com/CatsJuice/random-city')
+  await expect(github).toHaveAttribute('target', '_blank')
+  await expect(github).toHaveAttribute('rel', 'noopener noreferrer')
+  await expect(github.locator('use')).toHaveAttribute('href', `${site.pathname}icons.svg#github-icon`)
+  await headerFits(page)
   expect(models.length).toBeGreaterThan(5)
   expect(models.every((path) => path.startsWith(`${site.pathname}models/`))).toBe(true)
   await page.screenshot({ path: test.info().outputPath('pages-astra-desktop.png') })
@@ -58,9 +89,12 @@ test('production site works under the Pages path in both implementations', async
       await ready(page)
       await expect(page.getByRole('combobox', { name: '实现模型' })).toHaveValue(version)
     }
-    await page.setViewportSize({ width: 390, height: 844 })
-    await expect.poll(async () => (await pixels(page)).colors).toBeGreaterThan(35)
-    await page.screenshot({ path: test.info().outputPath(`pages-${version}-mobile.png`) })
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 })
+      await headerFits(page)
+      await expect.poll(async () => (await pixels(page)).colors).toBeGreaterThan(35)
+      await page.screenshot({ path: test.info().outputPath(`pages-${version}-${width}.png`) })
+    }
   }
   await page.getByRole('link', { name: '汐湾城市罗盘' }).click()
   await ready(page)
@@ -83,4 +117,7 @@ test('deployed sharing image and icon resolve inside the Pages path', async ({ p
   const icon = await page.locator('link[rel="icon"]').getAttribute('href')
   expect(icon).toBe(`${site.pathname}favicon.svg`)
   expect((await request.get(new URL(icon, site.origin).href)).ok()).toBe(true)
+  const symbols = await request.get(new URL(`${site.pathname}icons.svg`, site.origin).href)
+  expect(symbols.ok()).toBe(true)
+  expect(await symbols.text()).toContain('id="github-icon"')
 })

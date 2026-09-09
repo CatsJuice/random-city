@@ -215,6 +215,18 @@ export default function App() {
           >
             <Settings2 size={19} />
           </IconButton>
+          <a
+            className="icon-button github-link"
+            href="https://github.com/CatsJuice/random-city"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub 仓库"
+            title="在 GitHub 查看源码"
+          >
+            <svg width="21" height="21" aria-hidden="true" focusable="false">
+              <use href={`${import.meta.env.BASE_URL}icons.svg#github-icon`} />
+            </svg>
+          </a>
         </div>
       </header>
       <div className="location-tag">
