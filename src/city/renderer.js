@@ -12,6 +12,8 @@ import {
 } from './world.js'
 import { loadAssets, paintedGeometry, makeAssetMaterial } from './assets.js'
 import { buildLandscape } from './landscape.js'
+import { buildVegetation } from './vegetation.js'
+import { substrateBottom } from './substrate.js'
 import { buildStreets } from './streets.js'
 import { buildDetails } from './details.js'
 import { Batch } from './geometry.js'
@@ -465,7 +467,7 @@ export function createCity(container, options, events = {}) {
     new THREE.ShadowMaterial({ opacity: 0.1 })
   )
   floor.rotation.x = -Math.PI / 2
-  floor.position.y = -2.5
+  floor.position.y = substrateBottom(state.size) - 0.06
   floor.receiveShadow = true
   scene.add(floor, root)
   function resize() {
@@ -520,6 +522,7 @@ export function createCity(container, options, events = {}) {
       if (disposed || token !== revision) return
       const next = new THREE.Group()
       buildLandscape(nextWorld, next, uniforms)
+      next.userData.vegetation = buildVegetation(nextWorld, next, uniforms)
       events.onLoading?.(0.72)
       await new Promise((resolve) => setTimeout(resolve, 0))
       if (disposed || token !== revision) {
@@ -554,6 +557,7 @@ export function createCity(container, options, events = {}) {
       state.seed = seed
       state.density = density
       state.size = nextWorld.size
+      floor.position.y = substrateBottom(state.size) - 0.06
       const extent = state.size / 120
       controls.maxZoom = 5 * extent
       Object.assign(sun.shadow.camera, {
@@ -626,6 +630,7 @@ export function createCity(container, options, events = {}) {
     }
     controls.update()
     if (ready) {
+      root.userData.vegetation?.update(camera, container.clientHeight)
       traffic.update(active, seconds)
       lights.update(seconds)
       weather.update(state.weather, active, seconds)

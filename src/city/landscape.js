@@ -2,19 +2,26 @@ import * as THREE from 'three'
 import { Batch, ribbon } from './geometry.js'
 import { GROUND, heightAt, smooth, segmentDistance, isLand } from './world.js'
 import { waterDistance } from './geography.js'
+import { buildSubstrate, createEarthMaterial, seabedAt, SUBSTRATE_TOP, WATER_LEVEL } from './substrate.js'
+import { createWaterMaterial } from './water.js'
+import { createGroundMaterial } from './grass.js'
 
 export function buildLandscape(world, parent, uniforms) {
   const batch = new Batch()
   const size = world.size,
     half = size / 2
-  batch.box(0, -1.65, 0, size + 2.4, 2.5, size + 2.4, '#3f6869')
-  batch.box(0, -0.5, 0, size + 2.1, 0.22, size + 2.1, '#b8cebb')
-  for (const x of [-half - 1, half + 1]) batch.box(x, -0.08, 0, 0.42, 0.7, size + 2, '#e5e6ce')
-  for (const z of [-half - 1, half + 1]) batch.box(0, -0.08, z, size + 2, 0.7, 0.42, '#e5e6ce')
+  const earthMaterial = createEarthMaterial(world)
 
   const positions = [],
     colors = [],
+    groundCover = [],
     walls = [],
+    waterWalls = [],
+    waterWallDepths = [],
+    waterPositions = [],
+    waterDepths = [],
+    bedPositions = [],
+    boundary = [],
     grid = [],
     resolution = Math.round(size * 1.2),
     step = size / resolution
@@ -27,16 +34,18 @@ export function buildLandscape(world, parent, uniforms) {
     for (let x = 0; x <= resolution; x++) {
       const px = -half + x * step,
         pz = -half + z * step
-      grid.push({ x: px, z: pz, d: waterDistance(world.geography, px, pz), shore: false })
+      const d = waterDistance(world.geography, px, pz)
+      grid.push({ x: px, z: pz, d, shore: false, bed: seabedAt(world, px, pz, d) })
     }
   const crossing = (a, b) => {
     const t = a.d / (a.d - b.d)
-    return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, d: 0, shore: true }
+    return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, d: 0, shore: true, bed: SUBSTRATE_TOP }
   }
-  function wall(a, b) {
-    const ay = heightAt(world, a.x, a.z),
-      by = heightAt(world, b.x, b.z)
-    walls.push(
+  function wall(a, b, water = false) {
+    const ay = water ? WATER_LEVEL : heightAt(world, a.x, a.z),
+      by = water ? WATER_LEVEL : heightAt(world, b.x, b.z),
+      target = water ? waterWalls : walls
+    target.push(
       a.x,
       ay,
       a.z,
@@ -44,18 +53,22 @@ export function buildLandscape(world, parent, uniforms) {
       by,
       b.z,
       a.x,
-      -0.45,
+      a.bed,
       a.z,
       b.x,
       by,
       b.z,
       b.x,
-      -0.45,
+      b.bed,
       b.z,
       a.x,
-      -0.45,
+      a.bed,
       a.z
     )
+    if (water) {
+      const da = WATER_LEVEL - a.bed, db = WATER_LEVEL - b.bed
+      waterWallDepths.push(da, db, da, db, db, da)
+    }
   }
   const posts = new Set()
   function quay(a, b) {
@@ -89,18 +102,31 @@ export function buildLandscape(world, parent, uniforms) {
     }
   }
   function triangle(vertices) {
-    const clipped = []
+    const clipped = [], submerged = []
     for (let i = 0; i < 3; i++) {
       const a = vertices[i],
         b = vertices[(i + 1) % 3]
       if (a.d >= 0) clipped.push(a)
-      if (a.d >= 0 !== b.d >= 0) clipped.push(crossing(a, b))
+      else submerged.push(a)
+      if (a.d >= 0 !== b.d >= 0) {
+        const p = crossing(a, b)
+        clipped.push(p)
+        submerged.push(p)
+      }
+    }
+    for (let i = 1; i < submerged.length - 1; i++) {
+      for (const p of [submerged[0], submerged[i], submerged[i + 1]]) {
+        waterPositions.push(p.x, WATER_LEVEL, p.z)
+        waterDepths.push(WATER_LEVEL - p.bed)
+        bedPositions.push(p.x, p.bed, p.z)
+      }
     }
     if (clipped.length < 3) return
     for (let i = 1; i < clipped.length - 1; i++)
       for (const p of [clipped[0], clipped[i], clipped[i + 1]]) {
         const y = heightAt(world, p.x, p.z)
         positions.push(p.x, y, p.z)
+        groundCover.push(smooth(p.d / 2.1) * (1 - smooth((y - 6) / 8)))
         color
           .copy(grass)
           .lerp(rock, smooth((y - 3) / 10))
@@ -136,73 +162,57 @@ export function buildLandscape(world, parent, uniforms) {
       [grid[i * (resolution + 1)], grid[(i + 1) * (resolution + 1)]],
       [grid[i * (resolution + 1) + resolution], grid[(i + 1) * (resolution + 1) + resolution]]
     ]) {
-      if (a.d >= 0 && b.d >= 0) wall(a, b)
-      else if (a.d >= 0 !== b.d >= 0) {
+      if (a.d >= 0 !== b.d >= 0) {
         const p = crossing(a, b)
-        a.d >= 0 ? wall(a, p) : wall(p, b)
+        boundary.push([a, p], [p, b])
+      } else {
+        boundary.push([a, b])
       }
     }
+  for (const [a, b] of boundary) wall(a, b, a.d < 0 || b.d < 0)
+  buildSubstrate(world, parent, earthMaterial, boundary)
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geometry.setAttribute('groundCover', new THREE.Float32BufferAttribute(groundCover, 1))
   geometry.computeVertexNormals()
-  const material = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 1,
-    flatShading: true
-  })
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.snow = uniforms.snow
-    shader.fragmentShader = 'uniform float snow;\n' + shader.fragmentShader
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <color_fragment>',
-      '#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.89,0.94,0.98),snow*0.85);'
-    )
-  }
+  const material = createGroundMaterial(world, uniforms)
   const land = new THREE.Mesh(geometry, material)
+  land.name = 'Ground surface'
   land.castShadow = true
   land.receiveShadow = true
   parent.add(land)
   const wallGeometry = new THREE.BufferGeometry()
   wallGeometry.setAttribute('position', new THREE.Float32BufferAttribute(walls, 3))
   wallGeometry.computeVertexNormals()
-  const bank = new THREE.Mesh(
-    wallGeometry,
-    new THREE.MeshStandardMaterial({ color: '#c6c0a2', roughness: 1, side: THREE.DoubleSide })
-  )
+  const bank = new THREE.Mesh(wallGeometry, earthMaterial)
+  bank.name = 'Terrain cut faces'
   bank.receiveShadow = true
   parent.add(bank)
   batch.finish(parent, uniforms)
-  const waterMaterial = new THREE.MeshStandardMaterial({
-    color: '#329aa2',
-    roughness: 0.26,
-    metalness: 0.14
-  })
-  waterMaterial.onBeforeCompile = (shader) => {
-    shader.uniforms.cityTime = uniforms.time
-    shader.vertexShader =
-      'varying vec3 vWaterPosition; uniform float cityTime;\n' + shader.vertexShader
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <begin_vertex>',
-      '#include <begin_vertex>\nvWaterPosition=position;'
-    )
-    shader.fragmentShader =
-      'varying vec3 vWaterPosition; uniform float cityTime;\n' + shader.fragmentShader
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <color_fragment>',
-      `#include <color_fragment>
-      vec2 q=vWaterPosition.xy;
-      float ripple=sin(q.x*2.0+q.y*3.5+sin(q.x*.55+cityTime*.25)*1.4+cityTime*.9);
-      float waterPatch=sin(q.x*.7-q.y*.8+cityTime*.08)*sin(q.y*.33+q.x*.2);
-      float glint=smoothstep(.985,1.,ripple)*smoothstep(.45,.9,waterPatch);
-      diffuseColor.rgb*=.94+waterPatch*.09;
-      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.46,.79,.77),glint*.7);
-    `
-    )
-  }
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(size + 1.6, size + 1.6), waterMaterial)
-  water.rotation.x = -Math.PI / 2
-  water.position.y = 0.04
+  const bedGeometry = new THREE.BufferGeometry()
+  bedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(bedPositions, 3))
+  bedGeometry.computeVertexNormals()
+  const seabed = new THREE.Mesh(bedGeometry, new THREE.MeshStandardMaterial({ color: '#a5aa8c', roughness: 1 }))
+  seabed.name = 'Submerged seabed'
+  parent.add(seabed)
+  const waterGeometry = new THREE.BufferGeometry()
+  waterGeometry.setAttribute('position', new THREE.Float32BufferAttribute(waterPositions, 3))
+  waterGeometry.setAttribute('waterDepth', new THREE.Float32BufferAttribute(waterDepths, 1))
+  waterGeometry.computeVertexNormals()
+  const water = new THREE.Mesh(waterGeometry, createWaterMaterial(world, uniforms))
+  water.name = 'Water surface'
   water.receiveShadow = true
   parent.add(water)
+  const waterEdgeGeometry = new THREE.BufferGeometry()
+  waterEdgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(waterWalls, 3))
+  waterEdgeGeometry.setAttribute('waterDepth', new THREE.Float32BufferAttribute(waterWallDepths, 1))
+  waterEdgeGeometry.computeVertexNormals()
+  const waterEdges = new THREE.Mesh(
+    waterEdgeGeometry,
+    createWaterMaterial(world, uniforms, true)
+  )
+  waterEdges.name = 'Water cut faces'
+  waterEdges.receiveShadow = true
+  parent.add(waterEdges)
 }

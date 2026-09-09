@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Compass,
   Map,
@@ -22,10 +22,12 @@ import {
   TreePine,
   Route,
   ArrowUpRight,
-  ChevronDown
+  ChevronDown,
+  Languages
 } from 'lucide-react'
 import { IMPLEMENTATIONS, normalizeImplementation, loadImplementation } from './implementations.js'
 import { normalizeSize } from './city/world.js'
+import { LANGUAGES, LANGUAGE_KEY, messages, getInitialLocale, cityNameFor } from './i18n.js'
 import './App.css'
 
 const initialSeed = new URLSearchParams(window.location.search).get('seed') || 'SHIO-2048'
@@ -35,11 +37,11 @@ const initialImplementation = normalizeImplementation(
 )
 const clock = (t) =>
   `${String(Math.floor(t)).padStart(2, '0')}:${String(Math.floor((t % 1) * 60)).padStart(2, '0')}`
-function IconButton({ label, children, active, ...props }) {
+function IconButton({ label, children, active, className = '', ...props }) {
   return (
     <button
       type="button"
-      className={`icon-button ${active ? 'active' : ''}`}
+      className={`icon-button ${active ? 'active' : ''} ${className}`}
       aria-label={label}
       title={label}
       aria-pressed={active}
@@ -51,6 +53,10 @@ function IconButton({ label, children, active, ...props }) {
 }
 
 export default function App() {
+  const [locale, setLocale] = useState(getInitialLocale)
+  const text = messages[locale]
+  const numbers = useMemo(() => new Intl.NumberFormat(locale), [locale])
+  const percent = useMemo(() => new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }), [locale])
   const container = useRef(null),
     city = useRef(null)
   const options = useRef({
@@ -66,8 +72,7 @@ export default function App() {
   })
   const [implementation, setImplementation] = useState(initialImplementation)
   const legacy = implementation === 'gpt-5.5'
-  const [seed, setSeed] = useState(initialSeed),
-    [draft, setDraft] = useState(initialSeed),
+  const [draft, setDraft] = useState(initialSeed),
     [density, setDensity] = useState(0.84),
     [size, setSize] = useState(initialSize)
   const [panel, setPanel] = useState(false),
@@ -84,6 +89,17 @@ export default function App() {
     [speed, setSpeed] = useState(1),
     [mode, setMode] = useState('orbit'),
     [autoRotate, setAutoRotate] = useState(false)
+  const cityName = cityNameFor(locale, stats?.terrainName)
+  useEffect(() => {
+    document.documentElement.lang = locale
+    try { localStorage.setItem(LANGUAGE_KEY, locale) } catch { /* Language switching also works without storage. */ }
+  }, [locale])
+  useEffect(() => {
+    document.title = cityName
+  }, [cityName])
+  useEffect(() => {
+    container.current?.querySelector('canvas')?.setAttribute('aria-label', legacy ? text.canvas2d : text.canvas3d)
+  }, [legacy, progress, text.canvas2d, text.canvas3d])
   useEffect(() => {
     let active = true,
       api
@@ -151,7 +167,6 @@ export default function App() {
   function generate(value = draft) {
     value = value.trim().slice(0, 40) || 'SHIO-2048'
     setDraft(value)
-    setSeed(value)
     setError('')
     setProgress(0)
     const url = new URL(window.location.href)
@@ -169,24 +184,14 @@ export default function App() {
     >
       <div className="city-stage" ref={container} />
       <header className="topbar">
-        <a className="brand" href={import.meta.env.BASE_URL} aria-label="汐湾城市罗盘">
-          <span className="brand-mark">
-            <Compass size={25} strokeWidth={1.5} />
-          </span>
-          <span>
-            <h1>汐湾</h1>
-            <span className="brand-caption">CITY ATLAS</span>
-          </span>
-        </a>
-        <div className="topbar-center">
-          <span className={`live-dot ${paused ? 'paused' : ''}`} />
-          <span>一座正在生活的城市</span>
-        </div>
+        <h1 className="city-title">
+          <a href={import.meta.env.BASE_URL}>{cityName}</a>
+        </h1>
         <div className="header-actions">
           <div className="model-picker">
             <select
-              aria-label="实现模型"
-              title="切换实现模型"
+              aria-label={text.model}
+              title={text.switchModel}
               value={implementation}
               onChange={(e) => changeImplementation(e.target.value)}
             >
@@ -200,16 +205,17 @@ export default function App() {
           </div>
           <button
             className="generate-button"
-            aria-label="另一座城市"
-            title="另一座城市"
+            aria-label={text.anotherCity}
+            title={text.anotherCity}
             onClick={shuffle}
             disabled={progress < 1 && !error}
           >
             <Shuffle size={15} />
-            <span>另一座城市</span>
+            <span>{text.anotherCity}</span>
           </button>
           <IconButton
-            label={panel ? '收起设置' : '城市设置'}
+            className="settings-button"
+            label={panel ? text.collapseSettings : text.settings}
             active={panel}
             onClick={() => setPanel(!panel)}
           >
@@ -220,8 +226,8 @@ export default function App() {
             href="https://github.com/CatsJuice/random-city"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="GitHub 仓库"
-            title="在 GitHub 查看源码"
+            aria-label={text.github}
+            title={text.githubTitle}
           >
             <svg width="21" height="21" aria-hidden="true" focusable="false">
               <use href={`${import.meta.env.BASE_URL}icons.svg#github-icon`} />
@@ -229,33 +235,35 @@ export default function App() {
           </a>
         </div>
       </header>
-      <div className="location-tag">
-        <span className="eyebrow">THE COASTAL COLLECTION</span>
-        <div>
-          <h2>{stats?.terrainName || '城市罗盘'}</h2>
-          <span className="edition">NO. {seed.replace('SHIO-', '')}</span>
-        </div>
-      </div>
       {panel && (
-        <aside className="inspector" aria-label="城市设置">
+        <aside className="inspector" aria-label={text.settings}>
           <div className="inspector-heading">
-            <span>城市手记</span>
-            <IconButton label="关闭设置" onClick={() => setPanel(false)}>
+            <span>{text.notebook}</span>
+            <IconButton label={text.closeSettings} onClick={() => setPanel(false)}>
               <X size={16} />
             </IconButton>
           </div>
+          <div className="language-field">
+            <label htmlFor="language"><Languages size={15} aria-hidden="true" />{text.language}</label>
+            <div className="language-picker">
+              <select id="language" value={locale} onChange={(e) => setLocale(e.target.value)}>
+                {LANGUAGES.map(([id, name]) => <option key={id} value={id} lang={id}>{name}</option>)}
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </div>
+          </div>
           <section className="inspector-section">
             <div className="section-title">
-              <span>此刻</span>
-              <span className="micro-label">LOCAL TIME</span>
+              <span>{text.now}</span>
+              <span className="micro-label">{text.localTime}</span>
             </div>
             <div className="clock-row">
               <div className="clock">
                 {clock(time)}
-                <span>{time >= 6 && time < 18 ? '白昼' : '夜晚'}</span>
+                <span>{time >= 6 && time < 18 ? text.day : text.night}</span>
               </div>
               <IconButton
-                label={paused ? '继续模拟' : '暂停模拟'}
+                label={paused ? text.resume : text.pause}
                 active={paused}
                 onClick={() => config('paused', !paused, setPaused)}
               >
@@ -264,7 +272,7 @@ export default function App() {
             </div>
             <input
               className="time-range"
-              aria-label="城市时间"
+              aria-label={text.cityTime}
               type="range"
               min="0"
               max="23.99"
@@ -278,7 +286,7 @@ export default function App() {
               <span>24:00</span>
             </div>
             <div className="speed-row">
-              <span>时间流速</span>
+              <span>{text.speed}</span>
               <div className="speed-control">
                 {[1, 5, 20].map((s) => (
                   <button
@@ -295,32 +303,32 @@ export default function App() {
           </section>
           <section className="inspector-section">
             <div className="section-title">
-              <span>天气</span>
-              <span className="micro-label">ATMOSPHERE</span>
+              <span>{text.weather}</span>
+              <span className="micro-label">{text.atmosphere}</span>
             </div>
             <div className="weather-options">
               {[
-                ['sun', Sun, '晴'],
-                ['rain', CloudRain, '雨'],
-                ['snow', Snowflake, '雪']
-              ].map(([key, Icon, label]) => (
+                ['sun', Sun],
+                ['rain', CloudRain],
+                ['snow', Snowflake]
+              ].map(([key, Icon]) => (
                 <button
                   key={key}
                   className={weather === key ? 'selected' : ''}
                   aria-pressed={weather === key}
-                  aria-label={`${label}天`}
+                  aria-label={text[`${key}Label`]}
                   onClick={() => config('weather', key, setWeather)}
                 >
                   <Icon size={21} strokeWidth={1.4} />
-                  <span>{label}</span>
+                  <span>{text[key]}</span>
                 </button>
               ))}
             </div>
           </section>
           <section className="inspector-section city-form">
             <div className="section-title">
-              <span>城市基因</span>
-              <span className="micro-label">GENERATION</span>
+              <span>{text.generation}</span>
+              <span className="micro-label">{text.generationLabel}</span>
             </div>
             <form
               onSubmit={(e) => {
@@ -328,7 +336,7 @@ export default function App() {
                 generate()
               }}
             >
-              <label htmlFor="seed">地图种子</label>
+              <label htmlFor="seed">{text.seed}</label>
               <div className="seed-field">
                 <input
                   id="seed"
@@ -337,7 +345,7 @@ export default function App() {
                   onChange={(e) => setDraft(e.target.value)}
                 />
                 <IconButton
-                  label="随机生成城市"
+                  label={text.random}
                   onClick={shuffle}
                   disabled={progress < 1 && !error}
                 >
@@ -347,8 +355,8 @@ export default function App() {
               {!legacy && (
                 <>
                   <div className="density-label">
-                    <label htmlFor="density">建筑密度</label>
-                    <span>{Math.round(density * 100)}%</span>
+                    <label htmlFor="density">{text.density}</label>
+                    <span>{percent.format(density)}</span>
                   </div>
                   <input
                     id="density"
@@ -360,7 +368,7 @@ export default function App() {
                     onChange={(e) => setDensity(Number(e.target.value))}
                   />
                   <div className="density-label">
-                    <label htmlFor="map-size">罗盘尺寸</label>
+                    <label htmlFor="map-size">{text.size}</label>
                     <span>
                       {size} × {size}
                     </span>
@@ -375,14 +383,14 @@ export default function App() {
                     onChange={(e) => setSize(Number(e.target.value))}
                   />
                   <div className="range-labels">
-                    <span>标准</span>
-                    <span>大型</span>
-                    <span>广域</span>
+                    <span>{text.standard}</span>
+                    <span>{text.large}</span>
+                    <span>{text.vast}</span>
                   </div>
                 </>
               )}
               <button className="apply-button" type="submit" disabled={progress < 1 && !error}>
-                <span>生成城市</span>
+                <span>{text.generate}</span>
                 <ChevronRight size={16} />
               </button>
             </form>
@@ -391,18 +399,18 @@ export default function App() {
             <section className="city-census">
               <div>
                 <Building2 size={16} />
-                <b>{stats.buildings}</b>
-                <span>建筑</span>
+                <b>{numbers.format(stats.buildings)}</b>
+                <span>{text.buildings}</span>
               </div>
               <div>
                 <TreePine size={16} />
-                <b>{stats.trees}</b>
-                <span>树木</span>
+                <b>{numbers.format(stats.trees)}</b>
+                <span>{text.trees}</span>
               </div>
               <div>
                 <Route size={16} />
-                <b>{stats.bridges}</b>
-                <span>桥梁</span>
+                <b>{numbers.format(stats.bridges)}</b>
+                <span>{text.bridges}</span>
               </div>
             </section>
           )}
@@ -413,20 +421,20 @@ export default function App() {
               target="_blank"
               rel="noreferrer"
             >
-              3D assets by Kenney · CC0
+              {text.credit}
               <ArrowUpRight size={12} />
             </a>
           )}
         </aside>
       )}
-      <nav className="view-tools" aria-label="视角控制">
+      <nav className="view-tools" aria-label={text.viewControls}>
         {!legacy && (
           <>
-            <IconButton label="俯视地图" onClick={() => city.current?.overview()}>
+            <IconButton label={text.overhead} onClick={() => city.current?.overview()}>
               <Map size={18} />
             </IconButton>
             <IconButton
-              label="旋转视角"
+              label={text.orbit}
               active={mode === 'orbit'}
               onClick={() => config('mode', 'orbit', setMode)}
             >
@@ -435,7 +443,7 @@ export default function App() {
           </>
         )}
         <IconButton
-          label="平移视角"
+          label={text.pan}
           active={legacy || mode === 'pan'}
           onClick={() => {
             if (!legacy) config('mode', 'pan', setMode)
@@ -444,19 +452,19 @@ export default function App() {
           <Move size={18} />
         </IconButton>
         <span className="toolbar-divider" />
-        <IconButton label="放大" onClick={() => city.current?.zoom(1.2)}>
+        <IconButton label={text.zoomIn} onClick={() => city.current?.zoom(1.2)}>
           <ZoomIn size={19} />
         </IconButton>
-        <IconButton label="缩小" onClick={() => city.current?.zoom(1 / 1.2)}>
+        <IconButton label={text.zoomOut} onClick={() => city.current?.zoom(1 / 1.2)}>
           <ZoomOut size={19} />
         </IconButton>
-        <IconButton label="回到全景" onClick={() => city.current?.reset()}>
+        <IconButton label={text.reset} onClick={() => city.current?.reset()}>
           <RotateCcw size={17} />
         </IconButton>
         <span className="toolbar-divider" />
         {!legacy && (
           <IconButton
-            label="自动环绕"
+            label={text.autoOrbit}
             active={autoRotate}
             onClick={() => config('autoRotate', !autoRotate, setAutoRotate)}
           >
@@ -464,7 +472,7 @@ export default function App() {
           </IconButton>
         )}
         <IconButton
-          label="导出城市图片"
+          label={text.export}
           onClick={() => city.current?.screenshot()}
           disabled={progress < 1}
         >
@@ -472,14 +480,6 @@ export default function App() {
         </IconButton>
       </nav>
       <div className="world-status">
-        <span className="status-dot" />
-        {stats ? (
-          <span>
-            {stats.people} 位居民 · {stats.cars} 辆车
-          </span>
-        ) : (
-          <span>城市构建中</span>
-        )}
         <span className="fps">{perf?.fps || '--'} FPS</span>
       </div>
       {!legacy && (
@@ -494,14 +494,14 @@ export default function App() {
             <Compass size={34} strokeWidth={1} />
             <h2>
               {legacy
-                ? '绘制城市与街巷'
+                ? text.loading2d
                 : progress < 0.28
-                  ? '规划地形与航线'
+                  ? text.loadingPlan
                   : progress < 0.64
-                    ? '装载城市模型'
+                    ? text.loadingModels
                     : progress < 0.9
-                      ? '构建山川与街巷'
-                      : '准备夜景与光影'}
+                      ? text.loadingTerrain
+                      : text.loadingLights}
             </h2>
             <div className="loading-track">
               <div style={{ width: `${progress * 100}%` }} />
@@ -512,9 +512,9 @@ export default function App() {
       )}
       {error && (
         <div className="error-screen" role="alert">
-          <h2>城市未能完成加载</h2>
+          <h2>{text.loadError}</h2>
           <p>{error}</p>
-          <button onClick={() => generate()}>重新加载</button>
+          <button onClick={() => generate()}>{text.retry}</button>
         </div>
       )}
     </main>

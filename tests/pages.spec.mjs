@@ -25,7 +25,7 @@ async function ready(page) {
 }
 
 async function headerFits(page) {
-  const boxes = await page.locator('.brand, .header-actions > *').evaluateAll((elements) =>
+  const boxes = await page.locator('.city-title, .header-actions > *').evaluateAll((elements) =>
     elements.map((element) => {
       const { x, y, width, height } = element.getBoundingClientRect()
       return { x, y, width, height }
@@ -61,7 +61,8 @@ test('production site works under the Pages path in both implementations', async
   await page.goto(new URL('?seed=SHIO-261079&size=120&model=astra', site).href)
   await ready(page)
   await expect(page.getByRole('complementary', { name: '城市设置' })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: '汐湾城市罗盘' })).toHaveAttribute('href', site.pathname)
+  await expect(page.locator('.city-title a')).toHaveAttribute('href', site.pathname)
+  await expect(page.locator('.brand, .brand-mark, .brand-caption, .location-tag')).toHaveCount(0)
   const github = page.getByRole('link', { name: 'GitHub 仓库' })
   await expect(github).toHaveAttribute('href', 'https://github.com/CatsJuice/random-city')
   await expect(github).toHaveAttribute('target', '_blank')
@@ -96,7 +97,7 @@ test('production site works under the Pages path in both implementations', async
       await page.screenshot({ path: test.info().outputPath(`pages-${version}-${width}.png`) })
     }
   }
-  await page.getByRole('link', { name: '汐湾城市罗盘' }).click()
+  await page.locator('.city-title a').click()
   await ready(page)
   expect(new URL(page.url()).pathname).toBe(site.pathname)
   expect(failed).toEqual([])

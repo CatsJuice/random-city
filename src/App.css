@@ -29,61 +29,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 0 32px;
   pointer-events: none;
 }
 .topbar > * {
   pointer-events: auto;
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.brand-mark {
-  width: 44px;
-  height: 44px;
-  background: #2e6457;
-  color: #f3f4e9;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-}
-.brand h1 {
+.city-title {
+  min-width: 0;
+  margin: 0;
   font-family: 'Noto Serif SC', serif;
-  font-size: 25px;
-  font-weight: 600;
-  line-height: 1.1;
-}
-.brand-caption {
-  font-size: 8px;
-  font-weight: 700;
-  display: block;
-  margin-top: 5px;
-}
-.topbar-center {
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #697f76;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.live-dot,
-.status-dot {
-  background: #5d997b;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  display: inline-block;
-}
-.live-dot.paused {
-  background: #ad9472;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 .header-actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 12px;
 }
@@ -93,7 +57,8 @@
   height: 36px;
   flex: 0 0 156px;
 }
-.model-picker select {
+.model-picker select,
+.language-picker select {
   appearance: none;
   width: 100%;
   height: 100%;
@@ -106,11 +71,13 @@
   font-size: 11px;
   cursor: pointer;
 }
-.model-picker select:focus-visible {
+.model-picker select:focus-visible,
+.language-picker select:focus-visible {
   outline: 2px solid #3d8069;
   outline-offset: 3px;
 }
-.model-picker > svg {
+.model-picker > svg,
+.language-picker > svg {
   position: absolute;
   right: 10px;
   top: 11px;
@@ -144,41 +111,14 @@
   background: #e0e9df;
   color: #286e59;
 }
-.github-link {
+.github-link,
+.settings-button {
   background: #f5f7eff2;
 }
-.github-link:hover {
+.github-link:hover,
+.settings-button:hover,
+.settings-button.active {
   background: #e0e9df;
-}
-.location-tag {
-  position: absolute;
-  left: 33px;
-  top: 118px;
-  pointer-events: none;
-}
-.eyebrow {
-  font-size: 8px;
-  color: #7a9185;
-  font-weight: 700;
-}
-.location-tag > div {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  margin-top: 6px;
-}
-.location-tag h2 {
-  font-size: 18px;
-  font-family: 'Noto Serif SC', serif;
-  font-weight: 500;
-}
-.edition {
-  font-size: 9px;
-  color: #7b9186;
-  max-width: 185px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .inspector {
   position: absolute;
@@ -203,6 +143,30 @@
   font-family: 'Noto Serif SC', serif;
   font-size: 16px;
   margin-bottom: 9px;
+  gap: 8px;
+  line-height: 1.4;
+}
+.inspector-heading > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.language-field {
+  padding: 4px 0 17px;
+}
+.language-field label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 9px;
+  font-size: 11px;
+  color: #61776e;
+}
+.language-picker {
+  position: relative;
+  height: 36px;
+}
+.language-picker select {
+  font-size: 12px;
 }
 .inspector-heading .icon-button {
   margin-right: -8px;
@@ -221,11 +185,15 @@
   font-size: 11px;
   font-weight: 600;
   margin-bottom: 19px;
+  gap: 8px;
+  overflow-wrap: anywhere;
 }
 .micro-label {
   font-size: 7px;
   color: #99a79c;
   font-weight: 500;
+  max-width: 44%;
+  text-align: right;
 }
 .clock-row {
   display: flex;
@@ -261,9 +229,11 @@
   justify-content: space-between;
   font-size: 10px;
   color: #7c8f81;
+  gap: 8px;
 }
 .speed-control {
   display: flex;
+  flex-shrink: 0;
   gap: 3px;
 }
 .speed-control button {
@@ -370,6 +340,8 @@
 }
 .city-census span {
   font-size: 9px;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 .asset-credit {
   font-size: 8px;
@@ -417,7 +389,6 @@
 }
 .fps {
   color: #8ca193;
-  margin-left: 12px;
   font-size: 8px;
   min-width: 38px;
 }
@@ -550,9 +521,6 @@
   }
 }
 @media (max-width: 1000px) {
-  .topbar-center {
-    display: none;
-  }
   .world-status {
     bottom: 14px;
     left: 22px;
@@ -562,9 +530,6 @@
   }
   .view-tools {
     bottom: 42px;
-  }
-  .location-tag {
-    left: 24px;
   }
   .panel-open .city-stage {
     right: 252px;
@@ -586,18 +551,9 @@
     padding: 18px 18px 0;
     align-items: flex-start;
   }
-  .brand {
-    gap: 9px;
-  }
-  .brand h1 {
-    font-size: 22px;
-  }
-  .brand-mark {
-    width: 39px;
-    height: 39px;
-  }
-  .brand-caption {
-    font-size: 7px;
+  .city-title {
+    font-size: 20px;
+    padding-top: 5px;
   }
   .generate-button {
     padding: 0;
@@ -613,8 +569,10 @@
   }
   .header-actions {
     display: grid;
+    width: 150px;
     grid-template-columns: 36px 32px 32px;
     gap: 8px;
+    justify-content: end;
     justify-items: end;
   }
   .model-picker {
@@ -635,23 +593,6 @@
   .panel-open .city-stage {
     right: 0;
     bottom: 22px;
-  }
-  .location-tag {
-    top: 116px;
-    left: 21px;
-  }
-  .location-tag h2 {
-    font-size: 17px;
-  }
-  .location-tag > div {
-    gap: 10px;
-  }
-  .eyebrow {
-    font-size: 7px;
-  }
-  .edition {
-    max-width: 160px;
-    font-size: 8px;
   }
   .view-tools,
   .panel-open .view-tools {
@@ -706,19 +647,12 @@
 .atlas {
   background: var(--sky-color, #dfe9e5);
 }
-.atlas.night .brand,
-.atlas.night .location-tag h2 {
+.atlas.night .city-title {
   color: #e1e8d9;
 }
-.atlas.night .eyebrow,
-.atlas.night .edition,
 .atlas.night .world-status,
-.atlas.night .topbar-center,
 .atlas.night .compass-label {
   color: #a0b6ac;
-}
-.atlas.night .brand-mark {
-  background: #426e63;
 }
 .atlas.night .fps {
   color: #829c92;

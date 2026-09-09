@@ -7,6 +7,7 @@ export default defineConfig({
   workers: 1,
   timeout: 180000,
   use: {
+    locale: 'zh-CN',
     baseURL: process.env.CITY_TEST_URL || 'http://127.0.0.1:5173',
     viewport: { width: 1440, height: 980 },
     headless: true,
