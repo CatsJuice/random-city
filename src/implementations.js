@@ -1,5 +1,5 @@
 export const IMPLEMENTATIONS = [
-  { id: 'astra', label: 'GPT-5.6 Astra' },
+  { id: 'astra', label: 'GPT-6 Astra' },
   { id: 'gpt-5.5', label: 'GPT-5.5' }
 ]
 
